@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Package, Save, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Save, X, ClipboardList, ShoppingBag } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import OrderManagement from "@/components/admin/OrderManagement";
 
 type Product = Tables<"products">;
 type Variant = Tables<"product_variants">;
