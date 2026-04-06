@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Package, Save, X, ClipboardList, ShoppingBag } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Save, X, ClipboardList, ShoppingBag, QrCode as QrCodeIcon } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import OrderManagement from "@/components/admin/OrderManagement";
+import { useProductImage } from "@/hooks/useProductImage";
 
 type Product = Tables<"products">;
 type Variant = Tables<"product_variants">;
@@ -35,6 +36,8 @@ const Admin = () => {
   const [variants, setVariants] = useState<(typeof emptyVariant)[]>([{ ...emptyVariant, is_default: true }]);
   const [benefitsText, setBenefitsText] = useState("");
   const [isNew, setIsNew] = useState(false);
+  const [productImageFile, setProductImageFile] = useState<File | null>(null);
+  const [uploadingProductImage, setUploadingProductImage] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/");
@@ -50,9 +53,12 @@ const Admin = () => {
 
   useEffect(() => { fetchProducts(); }, []);
 
+  const currentProductImage = useProductImage(form.image);
+
   const startEdit = (p: ProductWithVariants) => {
     setEditing(p.id);
     setIsNew(false);
+    setProductImageFile(null);
     setForm({
       name: p.name, slug: p.slug, category: p.category, description: p.description,
       short_description: p.short_description, ingredients: p.ingredients,
@@ -68,12 +74,13 @@ const Admin = () => {
   const startNew = () => {
     setEditing("new");
     setIsNew(true);
+    setProductImageFile(null);
     setForm({ ...emptyProduct });
     setBenefitsText("");
     setVariants([{ ...emptyVariant, is_default: true }]);
   };
 
-  const cancel = () => { setEditing(null); setIsNew(false); };
+  const cancel = () => { setEditing(null); setIsNew(false); setProductImageFile(null); };
 
   const handleSave = async () => {
     if (!form.name || !form.slug || variants.length === 0) {
@@ -120,7 +127,75 @@ const Admin = () => {
     toast.success(`Marked as ${!current ? "In Stock" : "Out of Stock"}`);
   };
 
-  const [tab, setTab] = useState<"orders" | "products">("orders");
+  const [tab, setTab] = useState<"orders" | "products" | "payment">("orders");
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [qrFile, setQrFile] = useState<File | null>(null);
+  const [uploadingQr, setUploadingQr] = useState(false);
+  const STORAGE_BUCKET = import.meta.env.VITE_PAYMENT_BUCKET || "public";
+  const QR_PATH = "payment/qr.png";
+  const MAX_QR_SIZE_BYTES = 5 * 1024 * 1024;
+  const MAX_PRODUCT_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+  const FALLBACK_QR_URL = `/payment/qr.jpeg?t=${Date.now()}`;
+  const handleQrImageError = () => {
+    setQrUrl((currentUrl) => (currentUrl === FALLBACK_QR_URL ? currentUrl : FALLBACK_QR_URL));
+  };
+
+  const getQrPublicUrl = () => {
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(QR_PATH);
+    return data?.publicUrl ? `${data.publicUrl}?t=${Date.now()}` : FALLBACK_QR_URL;
+  };
+
+  const fetchQr = async () => {
+    try {
+      setQrUrl(getQrPublicUrl());
+    } catch (err) {
+      setQrUrl(FALLBACK_QR_URL);
+    }
+  };
+
+  useEffect(() => { fetchQr(); }, []);
+
+  const handleProductImageUpload = async () => {
+    if (!productImageFile) {
+      toast.error("Select a product image first");
+      return;
+    }
+
+    setUploadingProductImage(true);
+    try {
+      const extension = productImageFile.name.split(".").pop()?.toLowerCase() || "jpg";
+      const safeSlug = (form.slug || form.name || "product")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      const path = `products/${safeSlug || "product"}-${Date.now()}.${extension}`;
+      const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, productImageFile, {
+        cacheControl: "3600",
+        contentType: productImageFile.type,
+      });
+
+      if (error) {
+        const msg = (error.message || "").toString();
+        if (error.status === 404 || /bucket not found/i.test(msg)) {
+          toast.error(`Storage bucket '${STORAGE_BUCKET}' not found. Create it under Supabase -> Storage and enable public access.`);
+        } else if (/row-level security|violates row-level security/i.test(msg)) {
+          toast.error("Product image upload is blocked by Supabase storage policies. Apply the new migration, then try again.");
+        } else {
+          toast.error(msg || "Image upload failed");
+        }
+        return;
+      }
+
+      const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+      setForm({ ...form, image: data.publicUrl });
+      setProductImageFile(null);
+      toast.success("Product image uploaded");
+    } catch (err: any) {
+      toast.error(err?.message || "Image upload failed");
+    } finally {
+      setUploadingProductImage(false);
+    }
+  };
 
   if (loading) return <Layout><div className="container py-20 text-center">Loading...</div></Layout>;
   if (!isAdmin) return null;
@@ -137,10 +212,102 @@ const Admin = () => {
             <Button variant={tab === "products" ? "default" : "outline"} onClick={() => setTab("products")} className="gap-2">
               <ShoppingBag className="h-4 w-4" /> Products
             </Button>
+            <Button variant={tab === "payment" ? "default" : "outline"} onClick={() => setTab("payment")} className="gap-2">
+              <QrCodeIcon className="h-4 w-4" /> Payment QR
+            </Button>
           </div>
         </div>
 
         {tab === "orders" && <OrderManagement />}
+
+        {tab === "payment" && (
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h2 className="mb-4 font-serif text-xl font-semibold">Payment QR</h2>
+            <p className="mb-4 text-sm text-muted-foreground">Upload / replace the payment QR code that customers will scan to pay.</p>
+
+            <div className="mb-4 flex items-center gap-4">
+              <div className="h-36 w-36 overflow-hidden rounded-md border bg-muted p-2">
+                {qrUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={qrUrl} alt="Payment QR" className="h-full w-full object-contain" onError={handleQrImageError} />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">No QR uploaded</div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  onChange={e => {
+                    const file = e.target.files?.[0] ?? null;
+                    if (!file) {
+                      setQrFile(null);
+                      return;
+                    }
+                    if (!file.type.startsWith("image/")) {
+                      toast.error("Please select an image file");
+                      e.target.value = "";
+                      setQrFile(null);
+                      return;
+                    }
+                    if (file.size > MAX_QR_SIZE_BYTES) {
+                      toast.error("QR image must be smaller than 5 MB");
+                      e.target.value = "";
+                      setQrFile(null);
+                      return;
+                    }
+                    setQrFile(file);
+                  }}
+                />
+                {qrFile && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {qrFile.name}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button onClick={async () => {
+                    if (!qrFile) { toast.error("Select an image first"); return; }
+                    setUploadingQr(true);
+                      try {
+                        const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(QR_PATH, qrFile, {
+                          upsert: true,
+                          cacheControl: "0",
+                          contentType: qrFile.type,
+                        });
+                        if (error) {
+                          console.error("Supabase upload error:", error);
+                          const msg = (error.message || "").toString();
+                          if (error.status === 404 || /bucket not found/i.test(msg)) {
+                            toast.error(`Storage bucket '${STORAGE_BUCKET}' not found. Create it under Supabase -> Storage and enable public access.`);
+                          } else if (error.status === 403 || /access denied/i.test(msg)) {
+                            toast.error("Upload forbidden: check your Supabase storage policies and keys (403)");
+                          } else {
+                            toast.error(`Upload failed (${error.status || "?"}): ${msg}`);
+                          }
+                        } else {
+                          try {
+                            setQrUrl(getQrPublicUrl());
+                            setQrFile(null);
+                            toast.success("QR uploaded");
+                          } catch (gerr) {
+                            console.error("getPublicUrl error:", gerr);
+                            toast.success("Uploaded, but failed to read public URL. Check storage settings.");
+                          }
+                        }
+                      } catch (err: any) {
+                        console.error("Unexpected upload error:", err);
+                        toast.error(err?.message || "Upload failed");
+                      } finally { setUploadingQr(false); }
+                  }} disabled={uploadingQr}>
+                    {uploadingQr ? "Uploading..." : "Upload QR"}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setQrFile(null); fetchQr(); }}>Reset</Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {tab === "products" && (
         <div>
@@ -169,10 +336,60 @@ const Admin = () => {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Image</label>
-                <select value={form.image} onChange={e => setForm({ ...form, image: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  {imageOptions.map(i => <option key={i} value={i}>{i}</option>)}
-                </select>
+                <div className="space-y-3">
+                  <select value={imageOptions.includes(form.image) ? form.image : ""} onChange={e => setForm({ ...form, image: e.target.value || form.image })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="">Keep current / uploaded image</option>
+                    {imageOptions.map(i => <option key={i} value={i}>{i}</option>)}
+                  </select>
+                  <div className="flex items-start gap-4">
+                    <div className="h-28 w-28 overflow-hidden rounded-md border bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={currentProductImage} alt={form.name || "Product image preview"} className="h-full w-full object-cover" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        disabled={uploadingProductImage}
+                        onChange={e => {
+                          const file = e.target.files?.[0] ?? null;
+                          if (!file) {
+                            setProductImageFile(null);
+                            return;
+                          }
+                          if (!file.type.startsWith("image/")) {
+                            toast.error("Please select an image file");
+                            e.target.value = "";
+                            setProductImageFile(null);
+                            return;
+                          }
+                          if (file.size > MAX_PRODUCT_IMAGE_SIZE_BYTES) {
+                            toast.error("Product image must be smaller than 5 MB");
+                            e.target.value = "";
+                            setProductImageFile(null);
+                            return;
+                          }
+                          setProductImageFile(file);
+                        }}
+                      />
+                      {productImageFile && <p className="text-xs text-muted-foreground">Selected: {productImageFile.name}</p>}
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" onClick={handleProductImageUpload} disabled={uploadingProductImage || !productImageFile}>
+                          {uploadingProductImage ? "Uploading..." : "Upload Image"}
+                        </Button>
+                        {!imageOptions.includes(form.image) && form.image && (
+                          <Button type="button" variant="ghost" onClick={() => setForm({ ...form, image: emptyProduct.image })}>
+                            Use Default Image
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground break-all">
+                        Current image value: {form.image}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Badge (optional)</label>

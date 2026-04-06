@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { CheckCircle2, XCircle, ChevronDown, ChevronUp, Eye } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronDown, ChevronUp, Eye, Download, Copy } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +21,7 @@ type Order = {
   total_price: number;
   shipping: number;
   transaction_id: string | null;
+  screenshot_url?: string | null;
   admin_note: string | null;
   created_at: string;
   profile?: { name: string; email: string; mobile: string; address_line1: string | null; city: string | null; state: string | null; pincode: string | null } | null;
@@ -50,6 +52,8 @@ const OrderManagement = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [noteInputs, setNoteInputs] = useState<Record<string, string>>({});
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const fetchOrders = async () => {
     const { data: ordersData } = await supabase
@@ -168,6 +172,44 @@ const OrderManagement = () => {
                         <p className="font-mono text-sm font-semibold text-foreground">{o.transaction_id}</p>
                       </div>
                     )}
+
+                    {/* Screenshot */}
+                    {o.screenshot_url && (
+                      <div className="mb-4">
+                        <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Payment Screenshot</p>
+                        <div className="flex items-center gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={o.screenshot_url} alt="payment screenshot" className="h-28 w-28 rounded-md object-contain border" />
+                          <div className="flex flex-col">
+                            <div className="flex gap-2">
+                              <button className="inline-flex items-center gap-2 rounded-md border px-2 py-1 text-sm" onClick={() => { setPreviewUrl(o.screenshot_url!); setIsPreviewOpen(true); }}>
+                                <Eye className="h-4 w-4" /> Preview
+                              </button>
+                              <a href={o.screenshot_url} download className="inline-flex items-center gap-2 rounded-md border px-2 py-1 text-sm">
+                                <Download className="h-4 w-4" /> Download
+                              </a>
+                              <button className="inline-flex items-center gap-2 rounded-md border px-2 py-1 text-sm" onClick={async () => { try { await navigator.clipboard.writeText(o.screenshot_url || ""); toast.success("Copied URL"); } catch { toast.error("Copy failed"); } }}>
+                                <Copy className="h-4 w-4" /> Copy URL
+                              </button>
+                            </div>
+                            <div className="mt-2 text-xs text-muted-foreground">Uploaded by user for verification</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <Dialog open={isPreviewOpen} onOpenChange={(open) => { if (!open) setPreviewUrl(null); setIsPreviewOpen(open); }}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Payment Screenshot</DialogTitle>
+                          <DialogDescription className="mb-4">Preview of the uploaded payment screenshot.</DialogDescription>
+                        </DialogHeader>
+                        {previewUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={previewUrl} alt="preview" className="w-full max-h-[70vh] object-contain" />
+                        )}
+                      </DialogContent>
+                    </Dialog>
 
                     {/* Admin Note & Status Update */}
                     <div className="space-y-3">

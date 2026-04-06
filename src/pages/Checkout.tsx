@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { QrCode, Send, ArrowLeft } from "lucide-react";
 import Layout from "@/components/Layout";
@@ -15,6 +15,29 @@ const Checkout = () => {
   const navigate = useNavigate();
   const [transactionId, setTransactionId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const STORAGE_BUCKET = import.meta.env.VITE_PAYMENT_BUCKET || "public";
+  const QR_PATH = "payment/qr.png";
+  const FALLBACK_QR_URL = `/payment/qr.jpeg?t=${Date.now()}`;
+  const MAX_SCREENSHOT_SIZE_BYTES = 5 * 1024 * 1024;
+  const handleQrImageError = () => {
+    setQrUrl((currentUrl) => (currentUrl === FALLBACK_QR_URL ? currentUrl : FALLBACK_QR_URL));
+  };
+
+  useEffect(() => {
+    const fetchQr = async () => {
+      try {
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(QR_PATH);
+        setQrUrl(data.publicUrl ? `${data.publicUrl}?t=${Date.now()}` : FALLBACK_QR_URL);
+      } catch (err) {
+        setQrUrl(FALLBACK_QR_URL);
+      }
+    };
+    fetchQr();
+  }, []);
 
   const shipping = totalPrice >= 499 ? 0 : 49;
   const total = totalPrice + shipping;
@@ -34,6 +57,14 @@ const Checkout = () => {
       toast.error("Please enter your Transaction ID");
       return;
     }
+    if (!screenshotUrl) {
+      toast.error("Please upload your payment screenshot");
+      return;
+    }
+    if (uploadingScreenshot) {
+      toast.error("Please wait for the screenshot upload to finish");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -46,6 +77,7 @@ const Checkout = () => {
           shipping,
           status: "pending_verification",
           transaction_id: transactionId.trim(),
+          screenshot_url: screenshotUrl || null,
         })
         .select()
         .single();
@@ -96,10 +128,15 @@ const Checkout = () => {
 
             <div className="mb-6 flex flex-col items-center rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 p-8">
               <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-muted">
-                <div className="text-center">
-                  <QrCode className="mx-auto h-20 w-20 text-muted-foreground/50" />
-                  <p className="mt-2 text-xs text-muted-foreground">QR Code will be provided by admin</p>
-                </div>
+                {qrUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={qrUrl} alt="Payment QR" className="h-full w-full object-contain" onError={handleQrImageError} />
+                ) : (
+                  <div className="text-center">
+                    <QrCode className="mx-auto h-20 w-20 text-muted-foreground/50" />
+                    <p className="mt-2 text-xs text-muted-foreground">QR Code will be provided by admin</p>
+                  </div>
+                )}
               </div>
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 Scan this QR code using any UPI app (GPay, PhonePe, Paytm, etc.)
@@ -112,6 +149,71 @@ const Checkout = () => {
                 <div className="flex h-10 w-full items-center rounded-md border border-input bg-secondary/50 px-3 text-lg font-bold text-primary">
                   ₹{total}
                 </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">Upload payment screenshot *</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={uploadingScreenshot}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setScreenshotFile(file);
+                    setScreenshotUrl(null);
+                    if (!file) return;
+                    if (!user) { toast.error("You must be signed in to upload"); return; }
+                    if (!file.type.startsWith("image/")) {
+                      toast.error("Please choose an image file");
+                      e.target.value = "";
+                      setScreenshotFile(null);
+                      return;
+                    }
+                    if (file.size > MAX_SCREENSHOT_SIZE_BYTES) {
+                      toast.error("Screenshot must be smaller than 5 MB");
+                      e.target.value = "";
+                      setScreenshotFile(null);
+                      return;
+                    }
+                    setUploadingScreenshot(true);
+                    try {
+                      const path = `payment/screenshots/${user.id}_${Date.now()}_${file.name}`;
+                      const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
+                        contentType: file.type,
+                        cacheControl: "3600",
+                      });
+                      if (error) {
+                        const msg = (error.message || "").toString();
+                        if (error.status === 404 || /bucket not found/i.test(msg)) {
+                          toast.error(`Storage bucket '${STORAGE_BUCKET}' not found. Create it under Supabase -> Storage and enable public access.`);
+                        } else if (/row-level security|violates row-level security/i.test(msg)) {
+                          toast.error("Screenshot upload is blocked by Supabase storage policies. Apply the new migration, then try again.");
+                        } else {
+                          toast.error(msg || "Upload failed");
+                        }
+                      } else {
+                        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+                        setScreenshotUrl(data.publicUrl || null);
+                        toast.success("Screenshot uploaded");
+                      }
+                    } catch (err: any) {
+                      console.error("upload screenshot error", err);
+                      toast.error(err?.message || "Upload failed");
+                    } finally { setUploadingScreenshot(false); }
+                  }}
+                />
+                {uploadingScreenshot && (
+                  <p className="mt-2 text-xs text-muted-foreground">Uploading screenshot...</p>
+                )}
+                {screenshotFile && !uploadingScreenshot && (
+                  <p className="mt-2 text-xs text-muted-foreground">Selected: {screenshotFile.name}</p>
+                )}
+                {screenshotUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={screenshotUrl} alt="screenshot" className="mt-2 h-28 w-28 rounded-md object-contain" />
+                )}
+                {!screenshotUrl && !uploadingScreenshot && (
+                  <p className="mt-2 text-xs text-destructive">A payment screenshot is required before placing the order.</p>
+                )}
               </div>
 
               <div>
@@ -162,7 +264,7 @@ const Checkout = () => {
 
             <Button
               onClick={handlePlaceOrder}
-              disabled={submitting || !transactionId.trim()}
+              disabled={submitting || uploadingScreenshot || !transactionId.trim() || !screenshotUrl}
               className="mt-6 w-full gap-2"
               size="lg"
             >

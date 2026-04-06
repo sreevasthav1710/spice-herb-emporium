@@ -10,4 +10,8 @@ const imageMap: Record<string, string> = {
   moringa: moringaImg,
 };
 
-export const useProductImage = (key: string) => imageMap[key] || turmericImg;
+export const useProductImage = (key: string) => {
+  if (!key) return turmericImg;
+  if (/^(https?:)?\/\//.test(key) || key.startsWith("/")) return key;
+  return imageMap[key] || turmericImg;
+};

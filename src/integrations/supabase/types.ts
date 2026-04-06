@@ -64,6 +64,7 @@ export type Database = {
           admin_note: string | null
           created_at: string
           id: string
+          screenshot_url: string | null
           shipping: number
           status: string
           stripe_session_id: string | null
@@ -76,6 +77,7 @@ export type Database = {
           admin_note?: string | null
           created_at?: string
           id?: string
+          screenshot_url?: string | null
           shipping?: number
           status?: string
           stripe_session_id?: string | null
@@ -88,6 +90,7 @@ export type Database = {
           admin_note?: string | null
           created_at?: string
           id?: string
+          screenshot_url?: string | null
           shipping?: number
           status?: string
           stripe_session_id?: string | null
