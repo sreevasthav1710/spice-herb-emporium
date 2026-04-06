@@ -65,6 +65,14 @@ const Header = () => {
             </Button>
           </Link>
 
+          {user && (
+            <Link to="/my-orders">
+              <Button variant="ghost" size="icon" title="My Orders">
+                <Package className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
+
           {user ? (
             <Button variant="ghost" size="icon" onClick={() => signOut()} title="Sign Out">
               <LogOut className="h-5 w-5" />
