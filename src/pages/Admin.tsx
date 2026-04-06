@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Package, Save, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Save, X, ClipboardList, ShoppingBag } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import OrderManagement from "@/components/admin/OrderManagement";
 
 type Product = Tables<"products">;
 type Variant = Tables<"product_variants">;
@@ -119,6 +120,8 @@ const Admin = () => {
     toast.success(`Marked as ${!current ? "In Stock" : "Out of Stock"}`);
   };
 
+  const [tab, setTab] = useState<"orders" | "products">("orders");
+
   if (loading) return <Layout><div className="container py-20 text-center">Loading...</div></Layout>;
   if (!isAdmin) return null;
 
@@ -127,8 +130,23 @@ const Admin = () => {
       <div className="container py-8 md:py-12">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="font-serif text-3xl font-bold text-foreground">Admin Dashboard</h1>
-          <Button onClick={startNew} className="gap-2"><Plus className="h-4 w-4" /> Add Product</Button>
+          <div className="flex gap-2">
+            <Button variant={tab === "orders" ? "default" : "outline"} onClick={() => setTab("orders")} className="gap-2">
+              <ClipboardList className="h-4 w-4" /> Orders
+            </Button>
+            <Button variant={tab === "products" ? "default" : "outline"} onClick={() => setTab("products")} className="gap-2">
+              <ShoppingBag className="h-4 w-4" /> Products
+            </Button>
+          </div>
         </div>
+
+        {tab === "orders" && <OrderManagement />}
+
+        {tab === "products" && (
+        <div>
+          <div className="mb-4 flex justify-end">
+            <Button onClick={startNew} className="gap-2"><Plus className="h-4 w-4" /> Add Product</Button>
+          </div>
 
         {editing && (
           <div className="mb-8 rounded-xl border border-border bg-card p-6">
@@ -259,6 +277,8 @@ const Admin = () => {
             </div>
           ))}
         </div>
+        </div>
+        )}
       </div>
     </Layout>
   );

@@ -80,7 +80,7 @@ const Cart = () => {
             </div>
 
             <Button className="mt-6 w-full gap-2" size="lg" asChild>
-              <Link to="/auth"><CreditCard className="h-4 w-4" /> Proceed to Checkout</Link>
+              <Link to="/checkout"><CreditCard className="h-4 w-4" /> Proceed to Checkout</Link>
             </Button>
 
             <div className="mt-4 text-center text-xs text-muted-foreground">
