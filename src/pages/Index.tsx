@@ -7,7 +7,6 @@ import ProductCard from "@/components/ProductCard";
 import NewsletterPopup from "@/components/NewsletterPopup";
 import { useProducts } from "@/hooks/useProducts";
 import heroBanner from "@/assets/hero-banner.jpg";
-import aboutStory from "@/assets/about-story.jpg";
 import { Star } from "lucide-react";
 
 const trustItems = [
@@ -44,9 +43,6 @@ const Index = () => {
             </p>
             <div className="flex flex-wrap gap-4">
               <Button asChild size="lg" className="gap-2"><Link to="/products">Shop Now <ArrowRight className="h-4 w-4" /></Link></Button>
-              <Button asChild variant="outline" size="lg" className="border-cream/30 bg-cream/10 text-cream hover:bg-cream/20 hover:text-cream">
-                <Link to="/about">Our Story</Link>
-              </Button>
             </div>
           </motion.div>
         </div>
@@ -90,25 +86,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Story Preview */}
-      <section className="bg-secondary py-16 md:py-24">
-        <div className="container grid items-center gap-10 md:grid-cols-2">
-          <div className="overflow-hidden rounded-xl">
-            <img src={aboutStory} alt="Our spice sourcing story" className="h-full w-full object-cover" loading="lazy" />
-          </div>
-          <div>
-            <h2 className="font-serif text-3xl font-bold text-foreground md:text-4xl">From Farm to Your Kitchen</h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              At SpiceRoot, we work directly with small-scale farmers across India to bring you the freshest, most flavorful spice powders.
-            </p>
-            <p className="mt-3 leading-relaxed text-muted-foreground">No chemicals. No fillers. No compromises. Just pure, honest spices the way nature intended.</p>
-            <Button asChild className="mt-6 gap-2" variant="outline"><Link to="/about">Learn More <ArrowRight className="h-4 w-4" /></Link></Button>
-          </div>
-        </div>
-      </section>
-
       {/* Testimonials */}
-      <section className="py-16 md:py-24">
+      {/* <section className="py-16 md:py-24">
         <div className="container">
           <h2 className="mb-10 text-center font-serif text-3xl font-bold text-foreground md:text-4xl">What Our Customers Say</h2>
           <div className="grid gap-6 md:grid-cols-3">
@@ -125,7 +104,7 @@ const Index = () => {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* CTA */}
       <section className="bg-primary py-16 text-center text-primary-foreground">
