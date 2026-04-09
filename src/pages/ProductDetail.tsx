@@ -3,9 +3,10 @@ import { ArrowLeft, ShoppingCart, Star, Minus, Plus, Check } from "lucide-react"
 import { useState } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useProduct } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
-import { useProductImage } from "@/hooks/useProductImage";
+import { getProductImages } from "@/hooks/useProductImage";
 
 const ProductDetail = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -13,7 +14,8 @@ const ProductDetail = () => {
   const { addToCart } = useCart();
   const [qty, setQty] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
-  const imgSrc = useProductImage(product?.image || "");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   if (isLoading) return <Layout><div className="container py-20 text-center text-muted-foreground">Loading...</div></Layout>;
 
@@ -29,6 +31,12 @@ const ProductDetail = () => {
   }
 
   const selectedVariant = product.variants.find(v => v.id === selectedVariantId) || product.variants.find(v => v.is_default) || product.variants[0];
+  const productImages = getProductImages(product.image, product.gallery_images);
+  const activeImage = selectedImage && productImages.includes(selectedImage) ? selectedImage : productImages[0];
+  const showRatingSummary = (product.show_rating_summary ?? true) && product.rating !== null;
+  const showIngredients = (product.show_ingredients ?? true) && Boolean(product.ingredients?.trim());
+  const showUsageInstructions = (product.show_usage_instructions ?? true) && Boolean(product.usage_instructions?.trim());
+  const showDetailsSection = showIngredients || (product.benefits && product.benefits.length > 0) || showUsageInstructions;
 
   const handleAdd = () => {
     if (!selectedVariant) return;
@@ -43,8 +51,28 @@ const ProductDetail = () => {
         </Link>
 
         <div className="grid gap-10 md:grid-cols-2">
-          <div className="overflow-hidden rounded-xl bg-secondary">
-            <img src={imgSrc} alt={product.name} className="h-full w-full object-cover" />
+          <div className="space-y-4">
+            <button
+              type="button"
+              className="block w-full overflow-hidden rounded-xl bg-secondary text-left"
+              onClick={() => setIsImageOpen(true)}
+            >
+              <img src={activeImage} alt={product.name} className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.02]" />
+            </button>
+            {productImages.length > 1 && (
+              <div className="grid grid-cols-4 gap-3">
+                {productImages.map((image) => (
+                  <button
+                    key={image}
+                    type="button"
+                    onClick={() => setSelectedImage(image)}
+                    className={`overflow-hidden rounded-lg border bg-secondary ${activeImage === image ? "border-primary ring-2 ring-primary/20" : "border-border"}`}
+                  >
+                    <img src={image} alt={`${product.name} thumbnail`} className="aspect-square h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
@@ -53,7 +81,7 @@ const ProductDetail = () => {
             {!product.in_stock && (
               <span className="mt-2 inline-block rounded-full bg-destructive px-3 py-1 text-sm font-medium text-destructive-foreground">Out of Stock</span>
             )}
-            {product.rating && (
+            {showRatingSummary && (
               <div className="mt-2 flex items-center gap-2">
                 <div className="flex gap-0.5">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -113,31 +141,45 @@ const ProductDetail = () => {
               </Button>
             </div>
 
-            <div className="mt-8 space-y-4 border-t border-border pt-6">
-              <div>
-                <h3 className="font-serif text-lg font-semibold text-foreground">Ingredients</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{product.ingredients}</p>
+            {showDetailsSection && (
+              <div className="mt-8 space-y-4 border-t border-border pt-6">
+                {showIngredients && (
+                  <div>
+                    <h3 className="font-serif text-lg font-semibold text-foreground">Ingredients</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{product.ingredients}</p>
+                  </div>
+                )}
+                {product.benefits && product.benefits.length > 0 && (
+                  <div>
+                    <h3 className="font-serif text-lg font-semibold text-foreground">Benefits</h3>
+                    <ul className="mt-1 space-y-1">
+                      {product.benefits.map((b) => (
+                        <li key={b} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Check className="h-3.5 w-3.5 text-primary" /> {b}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {showUsageInstructions && (
+                  <div>
+                    <h3 className="font-serif text-lg font-semibold text-foreground">How to Use</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{product.usage_instructions}</p>
+                  </div>
+                )}
               </div>
-              {product.benefits && product.benefits.length > 0 && (
-                <div>
-                  <h3 className="font-serif text-lg font-semibold text-foreground">Benefits</h3>
-                  <ul className="mt-1 space-y-1">
-                    {product.benefits.map((b) => (
-                      <li key={b} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Check className="h-3.5 w-3.5 text-primary" /> {b}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div>
-                <h3 className="font-serif text-lg font-semibold text-foreground">How to Use</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{product.usage_instructions}</p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
+      <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
+        <DialogContent className="max-w-5xl border-none bg-transparent p-0 shadow-none">
+          <DialogTitle className="sr-only">{product.name} image preview</DialogTitle>
+          <div className="overflow-hidden rounded-xl bg-background">
+            <img src={activeImage} alt={product.name} className="max-h-[85vh] w-full object-contain" />
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

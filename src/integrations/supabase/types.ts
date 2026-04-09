@@ -44,6 +44,44 @@ export type Database = {
         }
         Relationships: []
       }
+      order_feedback: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          rating: number
+          review: string | null
+          suggestion: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          rating: number
+          review?: string | null
+          suggestion?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          rating?: number
+          review?: string | null
+          suggestion?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_feedback_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           id: string
@@ -176,6 +214,7 @@ export type Database = {
           category: string
           created_at: string
           description: string
+          gallery_images: string[] | null
           id: string
           image: string
           in_stock: boolean
@@ -183,6 +222,9 @@ export type Database = {
           name: string
           rating: number | null
           reviews: number | null
+          show_ingredients: boolean
+          show_rating_summary: boolean
+          show_usage_instructions: boolean
           short_description: string
           slug: string
           updated_at: string
@@ -194,6 +236,7 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string
+          gallery_images?: string[] | null
           id?: string
           image?: string
           in_stock?: boolean
@@ -201,6 +244,9 @@ export type Database = {
           name: string
           rating?: number | null
           reviews?: number | null
+          show_ingredients?: boolean
+          show_rating_summary?: boolean
+          show_usage_instructions?: boolean
           short_description?: string
           slug: string
           updated_at?: string
@@ -212,6 +258,7 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string
+          gallery_images?: string[] | null
           id?: string
           image?: string
           in_stock?: boolean
@@ -219,6 +266,9 @@ export type Database = {
           name?: string
           rating?: number | null
           reviews?: number | null
+          show_ingredients?: boolean
+          show_rating_summary?: boolean
+          show_usage_instructions?: boolean
           short_description?: string
           slug?: string
           updated_at?: string

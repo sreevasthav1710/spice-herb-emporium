@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ShoppingCart, Heart, Star } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import type { ProductWithVariants } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
 import { Button } from "@/components/ui/button";
@@ -37,14 +37,6 @@ const ProductCard = ({ product }: { product: ProductWithVariants }) => {
           <h3 className="font-serif text-lg font-semibold text-foreground transition-colors hover:text-primary">{product.name}</h3>
         </Link>
         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{product.short_description}</p>
-
-        {product.rating && (
-          <div className="mt-2 flex items-center gap-1">
-            <Star className="h-3.5 w-3.5 fill-gold text-gold" />
-            <span className="text-sm font-medium text-foreground">{product.rating}</span>
-            <span className="text-xs text-muted-foreground">({product.reviews})</span>
-          </div>
-        )}
 
         <p className="mt-1 text-xs text-muted-foreground">{product.variants.map(v => v.weight).join(" | ")}</p>
 

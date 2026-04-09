@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { CheckCircle2, Clock, Package, Truck, MapPin, XCircle, ArrowLeft } from "lucide-react";
+import { CheckCircle2, Clock, Package, Truck, MapPin, XCircle, ArrowLeft, Download } from "lucide-react";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { downloadInvoice } from "@/lib/invoice";
 
 type OrderItem = {
   id: string;
@@ -23,6 +24,17 @@ type Order = {
   admin_note: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type Profile = {
+  name: string;
+  email: string;
+  mobile: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
 };
 
 const STAGES = [
@@ -45,21 +57,28 @@ const OrderTracking = () => {
   const { user } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchOrder = async () => {
     if (!id || !user) return;
     const { data: o } = await supabase.from("orders").select("*").eq("id", id).single();
     const { data: oi } = await supabase.from("order_items").select("*").eq("order_id", id);
+    const { data: p } = await supabase
+      .from("profiles")
+      .select("name, email, mobile, address_line1, address_line2, city, state, pincode")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
     if (o) setOrder(o as Order);
     if (oi) setItems(oi);
+    if (p) setProfile(p as Profile);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchOrder();
 
-    // Realtime subscription for order updates
     const channel = supabase
       .channel(`order-${id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${id}` }, (payload) => {
@@ -67,7 +86,9 @@ const OrderTracking = () => {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id, user]);
 
   if (loading) return <Layout><div className="container py-20 text-center text-muted-foreground">Loading order...</div></Layout>;
@@ -88,9 +109,13 @@ const OrderTracking = () => {
           <p className="mt-1 text-sm text-muted-foreground">
             Order #{order.id.slice(0, 8).toUpperCase()} • Placed on {new Date(order.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
           </p>
+          <div className="mt-4">
+            <Button variant="outline" className="gap-2" onClick={() => downloadInvoice({ order, items, profile })}>
+              <Download className="h-4 w-4" /> Download Invoice
+            </Button>
+          </div>
         </div>
 
-        {/* Rejected Banner */}
         {isRejected && (
           <div className="mb-8 rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
             <XCircle className="mx-auto h-12 w-12 text-destructive" />
@@ -101,7 +126,6 @@ const OrderTracking = () => {
           </div>
         )}
 
-        {/* Tracking Timeline */}
         {!isRejected && (
           <div className="mb-10 rounded-xl border border-border bg-card p-6 md:p-8">
             <h2 className="mb-6 font-serif text-lg font-semibold text-foreground">Tracking Progress</h2>
@@ -125,7 +149,7 @@ const OrderTracking = () => {
                         <div className={`my-1 h-12 w-0.5 ${i < currentStageIdx ? "bg-primary" : "bg-border"}`} />
                       )}
                     </div>
-                    <div className={`pb-8 ${isCurrent ? "" : ""}`}>
+                    <div className="pb-8">
                       <p className={`text-sm font-semibold ${isCompleted ? "text-foreground" : "text-muted-foreground"}`}>
                         {stage.label}
                       </p>
@@ -143,7 +167,6 @@ const OrderTracking = () => {
           </div>
         )}
 
-        {/* Admin note */}
         {order.admin_note && !isRejected && (
           <div className="mb-6 rounded-lg border border-primary/20 bg-primary/5 p-4">
             <p className="text-sm font-medium text-foreground">Admin Note</p>
@@ -151,7 +174,6 @@ const OrderTracking = () => {
           </div>
         )}
 
-        {/* Order Details */}
         <div className="rounded-xl border border-border bg-card p-6">
           <h2 className="font-serif text-lg font-semibold text-foreground">Order Details</h2>
           <div className="mt-4 divide-y divide-border">
@@ -159,15 +181,15 @@ const OrderTracking = () => {
               <div key={item.id} className="flex justify-between py-3">
                 <div>
                   <p className="text-sm font-medium text-foreground">{item.product_name}</p>
-                  <p className="text-xs text-muted-foreground">{item.weight} × {item.quantity}</p>
+                  <p className="text-xs text-muted-foreground">{item.weight} x {item.quantity}</p>
                 </div>
-                <span className="text-sm font-semibold">₹{item.price * item.quantity}</span>
+                <span className="text-sm font-semibold">Rs. {item.price * item.quantity}</span>
               </div>
             ))}
           </div>
           <div className="mt-4 space-y-1 border-t border-border pt-4 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span>{order.shipping === 0 ? "Free" : `₹${order.shipping}`}</span></div>
-            <div className="flex justify-between text-base font-bold"><span>Total</span><span>₹{order.total_price}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span>{order.shipping === 0 ? "Free" : `Rs. ${order.shipping}`}</span></div>
+            <div className="flex justify-between text-base font-bold"><span>Total</span><span>Rs. {order.total_price}</span></div>
             {order.transaction_id && (
               <div className="flex justify-between pt-2 text-xs"><span className="text-muted-foreground">Transaction ID</span><span className="font-mono">{order.transaction_id}</span></div>
             )}

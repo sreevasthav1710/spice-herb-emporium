@@ -21,9 +21,7 @@ export const categories = [
   "All",
   "Masala Powders",
   "Organic Powders",
-  "Herbal Powders",
-  "Nutrition Powders",
-  "Spice Blends",
+  "Pickles",
 ] as const;
 
 export type Category = (typeof categories)[number];
