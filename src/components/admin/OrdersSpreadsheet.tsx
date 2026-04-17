@@ -196,10 +196,54 @@ const OrdersSpreadsheet = () => {
     }
   };
 
+  const downloadBill = async (orderId: string) => {
+    try {
+      const [{ data: order }, { data: items }] = await Promise.all([
+        supabase.from("orders").select("*").eq("id", orderId).maybeSingle(),
+        supabase.from("order_items").select("product_name, weight, price, quantity").eq("order_id", orderId),
+      ]);
+      if (!order) {
+        toast.error("Order not found");
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name, email, mobile, address_line1, address_line2, city, state, pincode")
+        .eq("user_id", order.user_id)
+        .maybeSingle();
+
+      await downloadInvoice({
+        order: {
+          id: order.id,
+          created_at: order.created_at,
+          total_price: order.total_price,
+          shipping: order.shipping,
+          status: order.status,
+          transaction_id: order.transaction_id,
+        },
+        items: items || [],
+        profile: profile
+          ? {
+              name: profile.name || "Customer",
+              email: profile.email || "",
+              mobile: profile.mobile || "",
+              address_line1: profile.address_line1,
+              address_line2: profile.address_line2,
+              city: profile.city,
+              state: profile.state,
+              pincode: profile.pincode,
+            }
+          : null,
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download bill");
+    }
+  };
+
   const exportXlsx = () => {
     // Build sheet matching the user's template: grouped headers (category) + sub-headers (product name)
-    const headerTop: (string | number)[] = ["S.NO", "Name", "Phone"];
-    const headerSub: (string | number)[] = ["", "", ""];
+    const headerTop: (string | number)[] = ["S.NO", "Order ID", "Name", "Phone"];
+    const headerSub: (string | number)[] = ["", "", "", ""];
     for (const [cat, prods] of groupedProducts) {
       headerTop.push(cat);
       headerSub.push(prods[0]?.name ?? "");
@@ -213,7 +257,7 @@ const OrdersSpreadsheet = () => {
 
     const data: (string | number)[][] = [headerTop, headerSub];
     for (const r of rows) {
-      const line: (string | number)[] = [r.sno, r.name, r.phone];
+      const line: (string | number)[] = [r.sno, r.orderId.slice(0, 8).toUpperCase(), r.name, r.phone];
       for (const [, prods] of groupedProducts) {
         for (const p of prods) {
           line.push(r.productQty[p.id] ?? "");
@@ -227,7 +271,7 @@ const OrdersSpreadsheet = () => {
 
     // Merge category headers across their product columns
     const merges: XLSX.Range[] = [];
-    let col = 3;
+    let col = 4;
     for (const [, prods] of groupedProducts) {
       if (prods.length > 1) {
         merges.push({ s: { r: 0, c: col }, e: { r: 0, c: col + prods.length - 1 } });
