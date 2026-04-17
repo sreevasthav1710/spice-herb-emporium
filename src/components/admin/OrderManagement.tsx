@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { CheckCircle2, XCircle, ChevronDown, ChevronUp, Eye, Download, Copy } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { CheckCircle2, XCircle, ChevronDown, ChevronUp, Eye, Download, Copy, Search, Calendar, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,12 +48,23 @@ const statusLabels: Record<string, string> = {
   rejected: "❌ Rejected",
 };
 
+const getOrderDateValue = (createdAt: string) => {
+  const date = new Date(createdAt);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 const OrderManagement = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [noteInputs, setNoteInputs] = useState<Record<string, string>>({});
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [orderIdSearch, setOrderIdSearch] = useState("");
+  const [dateSearch, setDateSearch] = useState("");
 
   const fetchOrders = async () => {
     const { data: ordersData } = await supabase
@@ -97,21 +108,86 @@ const OrderManagement = () => {
   };
 
   const pendingCount = orders.filter((o) => o.status === "pending_verification").length;
+  const hasSearch = orderIdSearch.trim().length > 0 || dateSearch.length > 0;
+  const filteredOrders = useMemo(() => {
+    const normalizedOrderId = orderIdSearch.trim().toLowerCase();
+
+    return orders.filter((order) => {
+      const matchesOrderId = normalizedOrderId
+        ? order.id.toLowerCase().includes(normalizedOrderId)
+        : true;
+      const matchesDate = dateSearch ? getOrderDateValue(order.created_at) === dateSearch : true;
+
+      return matchesOrderId && matchesDate;
+    });
+  }, [dateSearch, orderIdSearch, orders]);
+
+  const clearSearch = () => {
+    setOrderIdSearch("");
+    setDateSearch("");
+  };
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-serif text-xl font-semibold text-foreground">
           Orders {pendingCount > 0 && <span className="ml-2 rounded-full bg-destructive px-2.5 py-0.5 text-xs text-destructive-foreground">{pendingCount} pending</span>}
         </h2>
         <Button size="sm" variant="outline" onClick={fetchOrders}>Refresh</Button>
       </div>
 
+      <div className="mb-4 rounded-lg border border-border bg-card p-3">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end">
+          <label className="block">
+            <span className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Search className="h-3.5 w-3.5" />
+              Order ID
+            </span>
+            <Input
+              type="search"
+              value={orderIdSearch}
+              onChange={(e) => setOrderIdSearch(e.target.value)}
+              placeholder="Search by full or short order ID"
+              className="font-mono text-sm"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              Order Date
+            </span>
+            <Input
+              type="date"
+              value={dateSearch}
+              onChange={(e) => setDateSearch(e.target.value)}
+              className="text-sm"
+            />
+          </label>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={clearSearch}
+            disabled={!hasSearch}
+            className="gap-2 md:w-auto"
+          >
+            <X className="h-4 w-4" />
+            Clear
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Showing {filteredOrders.length} of {orders.length} orders
+        </p>
+      </div>
+
       {orders.length === 0 ? (
         <p className="text-sm text-muted-foreground">No orders yet.</p>
+      ) : filteredOrders.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No orders match your search.</p>
       ) : (
         <div className="space-y-3">
-          {orders.map((o) => {
+          {filteredOrders.map((o) => {
             const isExpanded = expanded === o.id;
             return (
               <div key={o.id} className="rounded-xl border border-border bg-card">

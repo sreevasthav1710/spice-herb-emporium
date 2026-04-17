@@ -84,7 +84,7 @@ const Cart = () => {
             </Button>
 
             <div className="mt-4 text-center text-xs text-muted-foreground">
-              <p>We accept: Visa • Mastercard • UPI • PayPal • COD</p>
+              <p>We accept: UPI Only </p>
             </div>
           </div>
         </div>
