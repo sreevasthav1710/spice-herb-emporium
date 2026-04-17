@@ -76,7 +76,7 @@ export type Database = {
           {
             foreignKeyName: "order_feedback_order_id_fkey"
             columns: ["order_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -222,10 +222,10 @@ export type Database = {
           name: string
           rating: number | null
           reviews: number | null
+          short_description: string
           show_ingredients: boolean
           show_rating_summary: boolean
           show_usage_instructions: boolean
-          short_description: string
           slug: string
           updated_at: string
           usage_instructions: string
@@ -244,10 +244,10 @@ export type Database = {
           name: string
           rating?: number | null
           reviews?: number | null
+          short_description?: string
           show_ingredients?: boolean
           show_rating_summary?: boolean
           show_usage_instructions?: boolean
-          short_description?: string
           slug: string
           updated_at?: string
           usage_instructions?: string
@@ -266,10 +266,10 @@ export type Database = {
           name?: string
           rating?: number | null
           reviews?: number | null
+          short_description?: string
           show_ingredients?: boolean
           show_rating_summary?: boolean
           show_usage_instructions?: boolean
-          short_description?: string
           slug?: string
           updated_at?: string
           usage_instructions?: string
