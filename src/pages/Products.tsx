@@ -4,7 +4,7 @@ import ProductCard from "@/components/ProductCard";
 import { useProducts } from "@/hooks/useProducts";
 import { Button } from "@/components/ui/button";
 
-const categories = ["All", "Masala Powders", "Organic Powders", "Pickles"];
+const categories = ["All", "Powders", "Pickles", "Miscellaneous"];
 
 const Products = () => {
   const [active, setActive] = useState("All");
