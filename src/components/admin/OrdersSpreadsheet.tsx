@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, RefreshCw, Save } from "lucide-react";
+import { Download, FileText, RefreshCw, Save } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { downloadInvoice } from "@/lib/invoice";
 
 // Stages that count as a confirmed/approved order.
 const APPROVED_STATUSES = ["approved", "processing", "shipped", "out_for_delivery", "delivered"];
@@ -195,10 +196,54 @@ const OrdersSpreadsheet = () => {
     }
   };
 
+  const downloadBill = async (orderId: string) => {
+    try {
+      const [{ data: order }, { data: items }] = await Promise.all([
+        supabase.from("orders").select("*").eq("id", orderId).maybeSingle(),
+        supabase.from("order_items").select("product_name, weight, price, quantity").eq("order_id", orderId),
+      ]);
+      if (!order) {
+        toast.error("Order not found");
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name, email, mobile, address_line1, address_line2, city, state, pincode")
+        .eq("user_id", order.user_id)
+        .maybeSingle();
+
+      await downloadInvoice({
+        order: {
+          id: order.id,
+          created_at: order.created_at,
+          total_price: order.total_price,
+          shipping: order.shipping,
+          status: order.status,
+          transaction_id: order.transaction_id,
+        },
+        items: items || [],
+        profile: profile
+          ? {
+              name: profile.name || "Customer",
+              email: profile.email || "",
+              mobile: profile.mobile || "",
+              address_line1: profile.address_line1,
+              address_line2: profile.address_line2,
+              city: profile.city,
+              state: profile.state,
+              pincode: profile.pincode,
+            }
+          : null,
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download bill");
+    }
+  };
+
   const exportXlsx = () => {
     // Build sheet matching the user's template: grouped headers (category) + sub-headers (product name)
-    const headerTop: (string | number)[] = ["S.NO", "Name", "Phone"];
-    const headerSub: (string | number)[] = ["", "", ""];
+    const headerTop: (string | number)[] = ["S.NO", "Order ID", "Name", "Phone"];
+    const headerSub: (string | number)[] = ["", "", "", ""];
     for (const [cat, prods] of groupedProducts) {
       headerTop.push(cat);
       headerSub.push(prods[0]?.name ?? "");
@@ -212,7 +257,7 @@ const OrdersSpreadsheet = () => {
 
     const data: (string | number)[][] = [headerTop, headerSub];
     for (const r of rows) {
-      const line: (string | number)[] = [r.sno, r.name, r.phone];
+      const line: (string | number)[] = [r.sno, r.orderId.slice(0, 8).toUpperCase(), r.name, r.phone];
       for (const [, prods] of groupedProducts) {
         for (const p of prods) {
           line.push(r.productQty[p.id] ?? "");
@@ -226,7 +271,7 @@ const OrdersSpreadsheet = () => {
 
     // Merge category headers across their product columns
     const merges: XLSX.Range[] = [];
-    let col = 3;
+    let col = 4;
     for (const [, prods] of groupedProducts) {
       if (prods.length > 1) {
         merges.push({ s: { r: 0, c: col }, e: { r: 0, c: col + prods.length - 1 } });
@@ -242,7 +287,7 @@ const OrdersSpreadsheet = () => {
     toast.success("Downloaded");
   };
 
-  const totalCols = 3 + products.length + 1;
+  const totalCols = 4 + products.length + 2;
 
   return (
     <div>
@@ -271,6 +316,7 @@ const OrdersSpreadsheet = () => {
           <thead>
             <tr className="bg-secondary">
               <th rowSpan={2} className="sticky left-0 z-10 border border-border bg-secondary px-2 py-2 text-left font-semibold">S.NO</th>
+              <th rowSpan={2} className="border border-border px-2 py-2 text-left font-semibold">Order ID</th>
               <th rowSpan={2} className="border border-border px-2 py-2 text-left font-semibold">Name</th>
               <th rowSpan={2} className="border border-border px-2 py-2 text-left font-semibold">Phone</th>
               {groupedProducts.map(([cat, prods]) => (
@@ -279,6 +325,7 @@ const OrdersSpreadsheet = () => {
                 </th>
               ))}
               <th rowSpan={2} className="border border-border px-2 py-2 text-right font-semibold">Amount</th>
+              <th rowSpan={2} className="border border-border px-2 py-2 text-center font-semibold">Bill</th>
             </tr>
             <tr className="bg-secondary/60">
               {groupedProducts.flatMap(([cat, prods]) =>
@@ -301,6 +348,9 @@ const OrdersSpreadsheet = () => {
               rows.map((r) => (
                 <tr key={r.orderId} className={dirty.has(r.orderId) ? "bg-primary/5" : ""}>
                   <td className="sticky left-0 z-[1] border border-border bg-card px-2 py-1 text-center font-medium">{r.sno}</td>
+                  <td className="border border-border px-2 py-1 font-mono text-xs text-muted-foreground" title={r.orderId}>
+                    {r.orderId.slice(0, 8).toUpperCase()}
+                  </td>
                   <td className="border border-border p-0">
                     <input
                       value={r.name}
@@ -334,6 +384,11 @@ const OrdersSpreadsheet = () => {
                       onChange={(e) => updateRow(r.orderId, { amount: Number(e.target.value) })}
                       className="w-24 bg-transparent px-2 py-1 text-right font-semibold outline-none focus:bg-accent/30"
                     />
+                  </td>
+                  <td className="border border-border px-2 py-1 text-center">
+                    <Button size="sm" variant="ghost" onClick={() => downloadBill(r.orderId)} className="h-7 gap-1 px-2 text-xs">
+                      <FileText className="h-3.5 w-3.5" /> PDF
+                    </Button>
                   </td>
                 </tr>
               ))
