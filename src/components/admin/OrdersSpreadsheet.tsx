@@ -287,7 +287,7 @@ const OrdersSpreadsheet = () => {
     toast.success("Downloaded");
   };
 
-  const totalCols = 3 + products.length + 1;
+  const totalCols = 4 + products.length + 2;
 
   return (
     <div>
