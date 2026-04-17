@@ -18,11 +18,11 @@ type Variant = Tables<"product_variants">;
 
 type ProductWithVariants = Product & { variants: Variant[] };
 
-const categories = ["Masala Powders", "Organic Powders", "Pickles"];
+const categories = ["Powders", "Pickles", "Miscellaneous"];
 const imageOptions = ["turmeric", "chili", "garam-masala", "moringa"];
 
 const emptyProduct = {
-  name: "", slug: "", category: "Masala Powders", description: "", short_description: "",
+  name: "", slug: "", category: "Powders", description: "", short_description: "",
   ingredients: "", benefits: [] as string[], usage_instructions: "", image: "turmeric", gallery_images: [] as string[],
   badge: "", in_stock: true, show_ingredients: true, show_usage_instructions: true, show_rating_summary: true,
 };

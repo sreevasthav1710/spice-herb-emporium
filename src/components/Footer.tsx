@@ -39,9 +39,9 @@ const Footer = () => (
         <div>
           <h4 className="mb-4 font-serif text-lg font-semibold">Categories</h4>
           <nav className="flex flex-col gap-2 text-sm opacity-80">
-            <Link to="/products" className="hover:opacity-100">Masala Powders</Link>
-            <Link to="/products" className="hover:opacity-100">Organic Powders</Link>
+            <Link to="/products" className="hover:opacity-100">Powders</Link>
             <Link to="/products" className="hover:opacity-100">Pickles</Link>
+            <Link to="/products" className="hover:opacity-100">Miscellaneous</Link>
           </nav>
         </div>
 
