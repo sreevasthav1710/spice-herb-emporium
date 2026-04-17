@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, RefreshCw, Save } from "lucide-react";
+import { Download, FileText, RefreshCw, Save } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { downloadInvoice } from "@/lib/invoice";
 
 // Stages that count as a confirmed/approved order.
 const APPROVED_STATUSES = ["approved", "processing", "shipped", "out_for_delivery", "delivered"];
