@@ -127,6 +127,41 @@ export type Database = {
           },
         ]
       }
+      order_spreadsheet_overrides: {
+        Row: {
+          amount_override: number | null
+          name_override: string | null
+          order_id: string
+          phone_override: string | null
+          product_qty_overrides: Json
+          updated_at: string
+        }
+        Insert: {
+          amount_override?: number | null
+          name_override?: string | null
+          order_id: string
+          phone_override?: string | null
+          product_qty_overrides?: Json
+          updated_at?: string
+        }
+        Update: {
+          amount_override?: number | null
+          name_override?: string | null
+          order_id?: string
+          phone_override?: string | null
+          product_qty_overrides?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_spreadsheet_overrides_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           admin_note: string | null

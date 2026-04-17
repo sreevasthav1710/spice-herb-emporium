@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Package, Save, X, ClipboardList, ShoppingBag, QrCode as QrCodeIcon, MessagesSquare } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Save, X, ClipboardList, ShoppingBag, QrCode as QrCodeIcon, MessagesSquare, FileSpreadsheet } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import ContactMessages from "@/components/admin/ContactMessages";
 import OrderManagement from "@/components/admin/OrderManagement";
+import OrdersSpreadsheet from "@/components/admin/OrdersSpreadsheet";
 import { useProductImage } from "@/hooks/useProductImage";
 
 type Product = Tables<"products">;
@@ -133,7 +134,7 @@ const Admin = () => {
     toast.success(`Marked as ${!current ? "In Stock" : "Out of Stock"}`);
   };
 
-  const [tab, setTab] = useState<"orders" | "messages" | "products" | "payment">("orders");
+  const [tab, setTab] = useState<"orders" | "spreadsheet" | "messages" | "products" | "payment">("orders");
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [qrFile, setQrFile] = useState<File | null>(null);
   const [uploadingQr, setUploadingQr] = useState(false);
@@ -260,6 +261,9 @@ const Admin = () => {
             <Button variant={tab === "orders" ? "default" : "outline"} onClick={() => setTab("orders")} className="gap-2">
               <ClipboardList className="h-4 w-4" /> Orders
             </Button>
+            <Button variant={tab === "spreadsheet" ? "default" : "outline"} onClick={() => setTab("spreadsheet")} className="gap-2">
+              <FileSpreadsheet className="h-4 w-4" /> Spreadsheet
+            </Button>
             <Button variant={tab === "messages" ? "default" : "outline"} onClick={() => setTab("messages")} className="gap-2">
               <MessagesSquare className="h-4 w-4" /> Messages
             </Button>
@@ -273,6 +277,8 @@ const Admin = () => {
         </div>
 
         {tab === "orders" && <OrderManagement />}
+
+        {tab === "spreadsheet" && <OrdersSpreadsheet />}
 
         {tab === "messages" && <ContactMessages />}
 
