@@ -316,6 +316,7 @@ const OrdersSpreadsheet = () => {
           <thead>
             <tr className="bg-secondary">
               <th rowSpan={2} className="sticky left-0 z-10 border border-border bg-secondary px-2 py-2 text-left font-semibold">S.NO</th>
+              <th rowSpan={2} className="border border-border px-2 py-2 text-left font-semibold">Order ID</th>
               <th rowSpan={2} className="border border-border px-2 py-2 text-left font-semibold">Name</th>
               <th rowSpan={2} className="border border-border px-2 py-2 text-left font-semibold">Phone</th>
               {groupedProducts.map(([cat, prods]) => (
@@ -324,6 +325,7 @@ const OrdersSpreadsheet = () => {
                 </th>
               ))}
               <th rowSpan={2} className="border border-border px-2 py-2 text-right font-semibold">Amount</th>
+              <th rowSpan={2} className="border border-border px-2 py-2 text-center font-semibold">Bill</th>
             </tr>
             <tr className="bg-secondary/60">
               {groupedProducts.flatMap(([cat, prods]) =>
@@ -346,6 +348,9 @@ const OrdersSpreadsheet = () => {
               rows.map((r) => (
                 <tr key={r.orderId} className={dirty.has(r.orderId) ? "bg-primary/5" : ""}>
                   <td className="sticky left-0 z-[1] border border-border bg-card px-2 py-1 text-center font-medium">{r.sno}</td>
+                  <td className="border border-border px-2 py-1 font-mono text-xs text-muted-foreground" title={r.orderId}>
+                    {r.orderId.slice(0, 8).toUpperCase()}
+                  </td>
                   <td className="border border-border p-0">
                     <input
                       value={r.name}
@@ -379,6 +384,11 @@ const OrdersSpreadsheet = () => {
                       onChange={(e) => updateRow(r.orderId, { amount: Number(e.target.value) })}
                       className="w-24 bg-transparent px-2 py-1 text-right font-semibold outline-none focus:bg-accent/30"
                     />
+                  </td>
+                  <td className="border border-border px-2 py-1 text-center">
+                    <Button size="sm" variant="ghost" onClick={() => downloadBill(r.orderId)} className="h-7 gap-1 px-2 text-xs">
+                      <FileText className="h-3.5 w-3.5" /> PDF
+                    </Button>
                   </td>
                 </tr>
               ))
